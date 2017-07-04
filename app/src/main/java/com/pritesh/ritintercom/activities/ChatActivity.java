@@ -16,6 +16,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import com.pritesh.ritintercom.R;
+import com.pritesh.ritintercom.TinyDB;
 import com.pritesh.ritintercom.data.ChatData;
 import com.pritesh.ritintercom.datatransfer.DataSender;
 import com.pritesh.ritintercom.utils.ConnectionUtils;
@@ -37,12 +38,16 @@ public class ChatActivity extends AppCompatActivity {
 
     EditText etChat;
     RecyclerView chatListHolder;
-    private List<ChatData> chatList;
+    private ArrayList<ChatData> chatList;
     private ChatListAdapter chatListAdapter;
 
     private String chattingWith;
     private String destIP;
     private int destPort;
+
+    boolean isNotif;
+    TinyDB tinydb ;//= new TinyDB(context);
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,24 +66,69 @@ public class ChatActivity extends AppCompatActivity {
         LinearLayoutManager linearLayoutManager = new LinearLayoutManager(ChatActivity.this);
         linearLayoutManager.setStackFromEnd(true);
         chatListHolder.setLayoutManager(linearLayoutManager);
+        tinydb = new TinyDB(getApplicationContext());
+
+
+        if(isNotif){
+            ArrayList<ChatData> chatDatas = HomeActivity.chatDatas;
+
+            for (ChatData chatData:chatDatas)
+            {
+
+                updateChatView(chatData);
+
+            }
+
+        }
+
+       if( tinydb.getListObject(chattingWith,ChatData.class).size() >0){
+
+           for (ChatData chatData:tinydb.getListObject(chattingWith,ChatData.class))
+           {
+               updateChatView(chatData);
+           }
+
+       }
     }
 
     private void initialize() {
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_CHAT_RECEIVED);
+
+
         LocalBroadcastManager.getInstance(ChatActivity.this).registerReceiver(chatReceiver, filter);
 
-        Bundle extras = getIntent().getExtras();
-        if (extras == null) {
-            NotificationToast.showToast(ChatActivity.this, "Invalid arguments to open chat");
-            finish();
+        if (getIntent().hasExtra("fromNotification")) {
+
+            isNotif = true;
+
+            Bundle extras = getIntent().getExtras();
+
+            chattingWith = extras.getString(KEY_CHATTING_WITH);
+            destIP = extras.getString(KEY_CHAT_IP);
+            destPort = extras.getInt(KEY_CHAT_PORT);
+
+            setToolBarTitle("Chat with " + chattingWith);
+
+
+
+        }else{
+            isNotif = false;
+
+            Bundle extras = getIntent().getExtras();
+            if (extras == null) {
+                NotificationToast.showToast(ChatActivity.this, "Invalid arguments to open chat");
+                finish();
+            }
+
+            chattingWith = extras.getString(KEY_CHATTING_WITH);
+            destIP = extras.getString(KEY_CHAT_IP);
+            destPort = extras.getInt(KEY_CHAT_PORT);
         }
 
-        chattingWith = extras.getString(KEY_CHATTING_WITH);
-        destIP = extras.getString(KEY_CHAT_IP);
-        destPort = extras.getInt(KEY_CHAT_PORT);
 
-        setToolBarTitle("Chat with " + chattingWith);
+
+
     }
 
     public void SendChatInfo(View v) {
@@ -95,8 +145,23 @@ public class ChatActivity extends AppCompatActivity {
 
         etChat.setText("");
 //        chatListHolder.smoothScrollToPosition(chatList.size() - 1);
+
         updateChatView(myChat);
     }
+
+    @Override
+    public void onBackPressed() {
+
+
+        tinydb.remove(chattingWith);
+        tinydb.putListObject(chattingWith,chatList);
+
+        finish();
+        return;
+    }
+
+
+
 
     @Override
     protected void onDestroy() {
@@ -118,7 +183,18 @@ public class ChatActivity extends AppCompatActivity {
         }
     };
 
+
+
+
+
+
+
     private void updateChatView(ChatData chatObj) {
+
+
+
+
+
         chatList.add(chatObj);
         chatListAdapter.notifyDataSetChanged();
         chatListHolder.smoothScrollToPosition(chatList.size() - 1);
@@ -144,6 +220,8 @@ public class ChatActivity extends AppCompatActivity {
                 return new ChatHolder(itemView);
             }
         }
+
+
 
         @Override
         public void onBindViewHolder(ChatHolder holder, int position) {

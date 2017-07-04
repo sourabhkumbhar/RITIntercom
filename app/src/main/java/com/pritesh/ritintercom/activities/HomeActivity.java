@@ -2,6 +2,8 @@ package com.pritesh.ritintercom.activities;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -9,6 +11,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.net.nsd.NsdServiceInfo;
 import android.os.Build;
@@ -16,6 +19,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -23,8 +27,11 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Toast;
 
+import com.pritesh.ritintercom.NotificationUtils;
 import com.pritesh.ritintercom.R;
+import com.pritesh.ritintercom.data.ChatData;
 import com.pritesh.ritintercom.data.DatabaseAdapter;
 import com.pritesh.ritintercom.data.DeviceData;
 import com.pritesh.ritintercom.utils.NotificationToast;
@@ -48,12 +55,24 @@ public class HomeActivity extends AppCompatActivity implements PeerListFragment.
 
     View progressBar;
 
-    AppController appController = null;
+    public static ArrayList<ChatData> chatDatas = new ArrayList<>();
 
+
+    AppController appController = null;
+    DeviceData chatDevice;
     private DeviceData selectedDevice;
     SweetAlertDialog pDialog;
+    NotificationUtils notificationUtils;
 
     public String currentExtension = "";
+    public static final String ACTION_CHAT_RECEIVED = "com.pritesh.ritintercom.chatreceived";
+    public static final String KEY_CHAT_DATA = "chat_data_key";
+
+
+    public static final String KEY_CHATTING_WITH = "chattingwith";
+    public static final String KEY_CHAT_IP = "chatterip";
+    public static final String KEY_CHAT_PORT = "chatterport";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +80,7 @@ public class HomeActivity extends AppCompatActivity implements PeerListFragment.
         setContentView(R.layout.nsd);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        notificationUtils = new NotificationUtils();
 
         initialize();
         mNsdHelper = new NsdHelper(this);
@@ -74,9 +94,80 @@ public class HomeActivity extends AppCompatActivity implements PeerListFragment.
         LocalBroadcastManager.getInstance(this).registerReceiver(mMessageReceiver,
                 new IntentFilter("file_send"));
 
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_CHAT_RECEIVED);
+        LocalBroadcastManager.getInstance(HomeActivity.this).registerReceiver(chatReceiver, filter);
+
 
     }
 
+
+    private BroadcastReceiver chatReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getAction()) {
+                case ACTION_CHAT_RECEIVED:
+                    ChatData chat = (ChatData) intent.getSerializableExtra(KEY_CHAT_DATA);
+                    chat.setMyChat(false);
+                    showNotification(chat);
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
+    private void showNotification(ChatData chat) {
+
+
+//        notificationUtils.displayNotification(HomeActivity.this,getApplicationContext(),chat,chatDevice);
+        Uri alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+//
+        NotificationCompat.Builder builder =
+                new NotificationCompat.Builder(this)
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .setContentTitle(chat.getSentBy())
+                        .setContentText(chat.getMessage())
+                         .setSound(alarmSound);
+
+        Toast.makeText(this, "New message from : "+chat.getSentBy(), Toast.LENGTH_SHORT).show();
+
+
+
+
+        Intent notificationIntent = new Intent(this, ChatActivity.class);
+        notificationIntent.putExtra("fromNotification", true);
+
+
+        if(chatRequesterDevice != null){
+            notificationIntent.putExtra(ChatActivity.KEY_CHAT_IP, chatRequesterDevice.getIp());
+            notificationIntent.putExtra(ChatActivity.KEY_CHAT_PORT, chatRequesterDevice.getPort());
+            notificationIntent.putExtra(ChatActivity.KEY_CHATTING_WITH, chatRequesterDevice.getPlayerName());
+        }
+
+
+
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.setContentIntent(contentIntent);
+
+        // Add as notification
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        manager.notify(0, builder.build());
+
+
+
+        ChatData myChat = new ChatData();
+        myChat.setPort(ConnectionUtils.getPort(this));
+        myChat.setFromIP(Utility.getString(this, "myip"));
+        myChat.setLocalTimestamp(System.currentTimeMillis());
+        myChat.setMessage(chat.getMessage());
+        myChat.setSentBy(chat.getSentBy());
+
+        chatDatas.add(myChat);
+
+
+    }
 
     @Override
     public void onBackPressed() {
@@ -231,6 +322,7 @@ public class HomeActivity extends AppCompatActivity implements PeerListFragment.
         super.onStop();
     }
 
+    public DeviceData chatRequesterDevice;
     private BroadcastReceiver Receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -266,24 +358,28 @@ public class HomeActivity extends AppCompatActivity implements PeerListFragment.
                     setToolBarTitle(peerCount);
                     break;
                 case HandleData.CHAT_REQUEST_RECEIVED:
-                    DeviceData chatRequesterDevice = (DeviceData) intent.getSerializableExtra(HandleData
+                    chatRequesterDevice = (DeviceData) intent.getSerializableExtra(HandleData
                             .KEY_CHAT_REQUEST);
                     //showChatRequestedDialog(chatRequesterDevice);
-                    DialogUtils.getChatRequestDialog(HomeActivity.this, chatRequesterDevice).show();
+//                    DialogUtils.getChatRequestDialog(HomeActivity.this, chatRequesterDevice).show();
+
+                    DialogUtils.silentRequest(HomeActivity.this,
+                            chatRequesterDevice);
+
                     break;
                 case HandleData.CHAT_RESPONSE_RECEIVED:
                     boolean isChatRequestAccepted = intent.getBooleanExtra(HandleData
                             .KEY_IS_CHAT_REQUEST_ACCEPTED, false);
-                    if (!isChatRequestAccepted) {
-                        NotificationToast.showToast(HomeActivity.this, "Chat request " +
-                                "rejected");
-                    } else {
-                        DeviceData chatDevice = (DeviceData) intent.getSerializableExtra(HandleData
+//                    if (!isChatRequestAccepted) {
+//                        NotificationToast.showToast(HomeActivity.this, "Chat request " +
+//                                "rejected");
+//                    } else {
+                        chatDevice = (DeviceData) intent.getSerializableExtra(HandleData
                                 .KEY_CHAT_REQUEST);
                         DialogUtils.openChatActivity(HomeActivity.this, chatDevice);
-                        NotificationToast.showToast(HomeActivity.this, chatDevice
-                                .getPlayerName() + "Accepted Chat request");
-                    }
+//                        NotificationToast.showToast(HomeActivity.this, chatDevice
+//                                .getPlayerName() + "Accepted Chat request");
+//                    }
                     break;
                 default:
                     break;

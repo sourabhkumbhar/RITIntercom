@@ -96,6 +96,15 @@ public class DialogUtils {
         return (alertDialog.create());
     }
 
+
+    public static  void silentRequest(final Activity activity, final DeviceData requesterDevice){
+
+//        openChatActivity(activity, requesterDevice);
+        NotificationToast.showToast(activity, "Chat request " +
+                "accepted");
+        DataSender.sendChatResponse(activity, requesterDevice.getIp(),
+                requesterDevice.getPort(), true);
+    }
     public static void openChatActivity(Activity activity, DeviceData device) {
         Intent chatIntent = new Intent(activity, ChatActivity.class);
         chatIntent.putExtra(ChatActivity.KEY_CHAT_IP, device.getIp());

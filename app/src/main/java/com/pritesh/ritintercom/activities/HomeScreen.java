@@ -9,6 +9,7 @@ import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -33,6 +34,7 @@ public class HomeScreen extends AppCompatActivity {
 
     EditText etUsername;
     TextView tvPort;
+    Button me;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +42,17 @@ public class HomeScreen extends AppCompatActivity {
         setContentView(R.layout.activity_home_screen);
         etUsername = (EditText) findViewById(R.id.et_home_player_name);
         tvPort = (TextView) findViewById(R.id.tv_port_info);
+        me = (Button) findViewById(R.id.me);
+
+
+        me.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(HomeScreen.this,ProfileActivity.class));
+            }
+        });
+
+
 
         String userNameHint = getString(R.string.enter_name_hint) + "(default = " + Build
                 .MANUFACTURER + ")";

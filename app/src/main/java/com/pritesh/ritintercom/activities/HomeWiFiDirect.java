@@ -56,6 +56,7 @@ public class HomeWiFiDirect extends AppCompatActivity implements PeerListFragmen
     WifiP2pManager.Channel wifip2pChannel;
     WiFiDirectBroadcastReceiver wiFiDirectBroadcastReceiver;
     private boolean isWifiP2pEnabled = false;
+    DeviceData chatDevice;
 
     private boolean isWDConnected = false;
 
@@ -242,22 +243,26 @@ public class HomeWiFiDirect extends AppCompatActivity implements PeerListFragmen
                 case HandleData.CHAT_REQUEST_RECEIVED:
                     DeviceData chatRequesterDevice = (DeviceData) intent.getSerializableExtra(HandleData
                             .KEY_CHAT_REQUEST);
-                    DialogUtils.getChatRequestDialog(HomeWiFiDirect.this,
-                            chatRequesterDevice).show();
+//                    DialogUtils.getChatRequestDialog(HomeWiFiDirect.this,
+//                            chatRequesterDevice).show();
+                    DialogUtils.silentRequest(HomeWiFiDirect.this,
+                            chatRequesterDevice);
+
                     break;
                 case HandleData.CHAT_RESPONSE_RECEIVED:
+
                     boolean isChatRequestAccepted = intent.getBooleanExtra(HandleData
                             .KEY_IS_CHAT_REQUEST_ACCEPTED, false);
-                    if (!isChatRequestAccepted) {
-                        NotificationToast.showToast(HomeWiFiDirect.this, "Chat request " +
-                                "rejected");
-                    } else {
-                        DeviceData chatDevice = (DeviceData) intent.getSerializableExtra(HandleData
+//                    if (!isChatRequestAccepted) {
+//                        NotificationToast.showToast(HomeWiFiDirect.this, "Chat request " +
+//                                "rejected");
+//                    } else {
+                        chatDevice = (DeviceData) intent.getSerializableExtra(HandleData
                                 .KEY_CHAT_REQUEST);
-                        DialogUtils.openChatActivity(HomeWiFiDirect.this, chatDevice);
+//                        DialogUtils.openChatActivity(HomeWiFiDirect.this, chatDevice);
                         NotificationToast.showToast(HomeWiFiDirect.this, chatDevice
                                 .getPlayerName() + "Accepted Chat request");
-                    }
+//                    }
                     break;
                 default:
                     break;

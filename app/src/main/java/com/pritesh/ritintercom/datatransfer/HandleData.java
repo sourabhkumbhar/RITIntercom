@@ -21,6 +21,7 @@ public class HandleData {
     public static final String CHAT_RESPONSE_RECEIVED = "chat_response_received";
     public static final String KEY_CHAT_REQUEST = "chat_requester_or_responder";
     public static final String KEY_IS_CHAT_REQUEST_ACCEPTED = "is_chat_request_Accespter";
+    public static final String CHAT_RECEIVED = "chat_received";
 
 
     private ITransferable data;
